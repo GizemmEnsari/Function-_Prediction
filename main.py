@@ -22,10 +22,6 @@ def show_img():
     image_path = os.path.join('static','img', 'prediction.png')
     return render_template('image.html',image_path = image_path)
 
-
-
-
-
 @app.route('/', methods=['GET','POST'])
 def index():
     if request.method =='POST':
@@ -66,27 +62,24 @@ def index():
 
             # initialize lists for evaluation metrics
             loss_scores = []
-            accuracy_scores = []
+
             r2_scores = []
             mae_scores = []
 
             # loop over folds
             for train_idx, test_idx in kFold.split(x):
                 # get training and testing sets for this fold
-                x_train, x_test = x[train_idx], x[test_idx]
-                y_train, y_test = y[train_idx], y[test_idx]
+                x_train_fold, x_test_fold = x[train_idx], x[test_idx]
+                y_train_fold, y_test_fold = y[train_idx], y[test_idx]
 
                 # train the model on this fold's training set
                 early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
-                history = model.fit(x_train, y_train, epochs=100, batch_size=32, validation_split=0.2,
+                history = model.fit(x_train_fold, y_train_fold, epochs=100, batch_size=32, validation_split=0.2,
                                     callbacks=[early_stopping])
 
-                # evaluate the model on this fold's testing set
-                result = model.evaluate(x_test, y_test)
-                loss = result if isinstance(result, float) else result[0]
-                accuracy = result if isinstance(result, float) else result[1]
-                loss_scores.append(loss)
-                accuracy_scores.append(accuracy)
+
+                mse = model.evaluate(x_test_fold, y_test_fold)
+
 
 
 
@@ -104,14 +97,10 @@ def index():
                 mae_scores.append(mae)
 
             # calculate the average evaluation metrics over all folds
-            avg_loss = np.mean(loss_scores)
-            avg_accuracy = np.mean(accuracy_scores)
             avg_r2 = np.mean(r2_scores)
             avg_mae = np.mean(mae_scores)
 
             # print the evaluation results
-            print("Average test set loss:", avg_loss)
-            print("Average test set accuracy:", avg_accuracy)
             print("Average test set R-squared:", avg_r2)
             print("Average test set MAE:", avg_mae)
 
@@ -120,10 +109,10 @@ def index():
             history = model.fit(x_train,y_train,epochs=100,batch_size=32,validation_split=0.2,
                                 callbacks=[early_stopping])
 
-            loss = model.evaluate(x_test,y_test)
+
 
             x_pred = np.linspace(min(x),max(x),num=100).reshape(-1,1)
-            y_pred = model.predict(scaler.transform((x_pred)))
+            y_pred = model.predict(scaler.transform(x_pred))
             plt.scatter(x,y)
             plt.plot(x_pred,y_pred,color='red')
             plt.title('Function Prediction Results')
@@ -132,9 +121,7 @@ def index():
             plt.savefig('static/img/prediction.png')
             plt.close()
 
-            result = model.evaluate(x_test, y_test)
-            loss = result if isinstance(result, float) else result[0]
-            accuracy = result if isinstance(result, float) else result[1]
+            mse = model.evaluate(x_test, y_test)
 
             # Predict the output for the test set
             y_pred = model.predict(x_test)
@@ -144,8 +131,7 @@ def index():
             mae = mean_absolute_error(y_test, y_pred)
 
             # Print the evaluation results
-            print("Test set loss:", loss)
-            print("Test set accuracy:", accuracy)
+            print('Test set MSE: ', mse)
             print("Test set R-squared:", r2)
             print("Test set MAE:", mae)
             return redirect(url_for('show_img'))
